@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arduino Based Remote Car</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at top left, #141e30, #243b55);
+      color: white;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    h1 {
+      font-size: 2.7rem;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 6px #000;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 2rem;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 1400px;
+    }
+    .control-panel, .status-panel {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      transition: all 0.3s ease;
+    }
+    .controller {
+      display: grid;
+      grid-template-areas:
+        ". forward ."
+        "left . right"
+        ". backward .";
+      grid-gap: 1rem;
+      justify-items: center;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .controller button, .action-buttons button {
+      width: 90px;
+      height: 90px;
+      font-size: 1.7rem;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(145deg, #1de9b6, #1dc4e9);
+      color: white;
+      cursor: pointer;
+      transition: transform 0.3s, background 0.3s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .controller button:hover, .action-buttons button:hover {
+      transform: scale(1.15);
+      background: linear-gradient(145deg, #1dc4e9, #1de9b6);
+    }
+    .robot-animation {
+      height: 80px;
+      margin-bottom: 1rem;
+      animation: float 2s ease-in-out infinite;
+      font-size: 2.2rem;
+      text-align: center;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .speed-mode {
+      margin-bottom: 2rem;
+    }
+    .speed-mode label {
+      display: block;
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+    }
+    .speed-mode span {
+      margin-right: 1.5rem;
+    }
+    .distance-display, .alarm-setting, .env-data {
+      margin-bottom: 1rem;
+    }
+    .status-panel input, select {
+      padding: 0.5rem;
+      border-radius: 10px;
+      border: none;
+      margin-top: 0.5rem;
+      width: 100%;
+    }
+    #alarmStatus {
+      font-weight: bold;
+      margin-top: 0.5rem;
+      color: #ff4d4d;
+    }
+    .camera-feed {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      height: 200px;
+      margin-top: 1rem;
+      box-shadow: 0 0 15px #00f3ff;
+    }
+    .camera-feed img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .features, .action-buttons {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 1rem;
+      font-size: 0.95rem;
+    }
+    .features div, .action-buttons button {
+      background: rgba(255,255,255,0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+    }
+    .action-buttons button {
+      width: auto;
+      padding: 0.5rem 1.5rem;
+      height: auto;
+      border-radius: 25px;
+      font-size: 1rem;
+    }
+    .alarm-indicator {
+      width: 20px;
+      height: 20px;
+      background-color: red;
+      border-radius: 50%;
+      margin-left: 10px;
+      display: inline-block;
+      box-shadow: 0 0 10px red;
+      visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+  <h1>Arduino Based Remote Car</h1>
+  <div class="dashboard">
+    <div class="control-panel">
+      <div class="robot-animation" id="robotStatus">🤖</div>
+      <div class="controller">
+        <button style="grid-area: forward" onclick="move('forward')">⬆️</button>
+        <button style="grid-area: left" onclick="move('left')">⬅️</button>
+        <button style="grid-area: right" onclick="move('right')">➡️</button>
+        <button style="grid-area: backward" onclick="move('backward')">⬇️</button>
+      </div>
+      <div class="action-buttons">
+        <button onclick="stopMotors()">🛑 Stop Motors</button>
+        <button onclick="shutdownSystem()">🔌 Stop All</button>
+        <button onclick="resetSystem()">🔁 Reset</button>
+      </div>
+      <div class="speed-mode">
+        <label>Speed Mode:</label>
+        <span><input type="radio" name="speed" value="1" checked onclick="setSpeed(1)" /> Mode 1</span>
+        <span><input type="radio" name="speed" value="2" onclick="setSpeed(2)" /> Mode 2</span>
+        <span><input type="radio" name="speed" value="3" onclick="setSpeed(3)" /> Mode 3</span>
+      </div>
+    </div>
+
+    <div class="status-panel">
+      <div class="distance-display">
+        <label>Distance from Object:</label>
+        <p><strong><span id="distance">--</span> cm</strong></p>
+      </div>
+      <div class="alarm-setting">
+        <label>Set Alarm Distance (cm):</label>
+        <input type="number" id="alarmDistance" placeholder="Enter distance" onchange="checkAlarm()" />
+        <p id="alarmStatus">Alarm: <span class="alarm-indicator" id="alarmLight"></span></p>
+      </div>
+      <div class="env-data">
+        <label>Temperature:</label>
+        <p><strong><span id="temperature">--</span> °C</strong></p>
+        <label>Humidity:</label>
+        <p><strong><span id="humidity">--</span> %</strong></p>
+      </div>
+      <div class="camera-feed">
+        <img src="http://your-esp32-cam.local/stream" alt="Live Camera Feed" />
+      </div>
+      <div class="features">
+        <div>🔋 Battery: 95%</div>
+        <div>📶 Signal: Strong</div>
+        <div>⚙️ Speed: <span id="speedLevel">1</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentSpeed = 1;
+    let alarmTriggered = false;
+
+    function move(direction) {
+      if (alarmTriggered) {
+        document.getElementById('robotStatus').innerText = '⚠️ Movement blocked by alarm';
+        return;
+      }
+      const robot = document.getElementById('robotStatus');
+      robot.innerText = '🤖 Moving ' + direction;
+      robot.style.animation = 'none';
+      robot.offsetHeight;
+      robot.style.animation = 'float 2s ease-in-out infinite';
+      console.log("Command:", direction);
+    }
+
+    function stopMotors() {
+      document.getElementById('robotStatus').innerText = '🛑 Motors Stopped';
+      console.log("Motors stopped");
+    }
+
+    function shutdownSystem() {
+      document.getElementById('robotStatus').innerText = '🔌 System Stopped';
+      console.log("All systems shut down");
+    }
+
+    function resetSystem() {
+      document.getElementById('robotStatus').innerText = '🔁 System Reset';
+      setSpeed(1);
+      document.getElementById('alarmDistance').value = '';
+      document.getElementById('alarmStatus').textContent = '';
+      document.getElementById('alarmLight').style.visibility = 'hidden';
+      alarmTriggered = false;
+      console.log("System reset");
+    }
+
+    function setSpeed(mode) {
+      currentSpeed = mode;
+      document.getElementById('speedLevel').textContent = mode;
+      console.log("Speed mode set to:", mode);
+    }
+
+    function checkAlarm() {
+      const alarmDist = parseInt(document.getElementById('alarmDistance').value);
+      const currentDist = parseInt(document.getElementById('distance').textContent);
+      const alarmLight = document.getElementById('alarmLight');
+
+      if (!isNaN(alarmDist) && !isNaN(currentDist) && currentDist < alarmDist) {
+        document.getElementById('alarmStatus').childNodes[0].textContent = '🚨 Object too close! ';
+        alarmLight.style.visibility = 'visible';
+        alarmTriggered = true;
+        stopMotors();
+      } else {
+        document.getElementById('alarmStatus').childNodes[0].textContent = 'Alarm: ';
+        alarmLight.style.visibility = 'hidden';
+        alarmTriggered = false;
+      }
+    }
+
+    // Simulate data
+    setInterval(() => {
+      const simulatedDist = Math.floor(Math.random() * 100);
+      const simulatedTemp = (20 + Math.random() * 10).toFixed(1);
+      const simulatedHumidity = (40 + Math.random() * 30).toFixed(1);
+
+      document.getElementById('distance').textContent = simulatedDist;
+      document.getElementById('temperature').textContent = simulatedTemp;
+      document.getElementById('humidity').textContent = simulatedHumidity;
+
+      checkAlarm();
+    }, 2000);
+  </script>
+</body>
+</html>
